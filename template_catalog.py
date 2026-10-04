@@ -1,4 +1,16 @@
 """Ready-to-edit templates and safe LaTeX generators."""
+import hashlib
+import sys
+from pathlib import Path
+
+
+def preview_asset(root, source, extension):
+    key = hashlib.sha256(source.encode('utf-8')).hexdigest()
+    asset_root = Path(getattr(sys, '_MEIPASS', root))
+    path = asset_root / 'assets' / 'templates' / (key + extension)
+    return path if path.is_file() else None
+
+
 def escape_text(value):
     replacements = {'\\': r'\textbackslash{}', '&': r'\&', '%': r'\%', '$': r'\$', '#': r'\#', '_': r'\_', '{': r'\{', '}': r'\}', '~': r'\textasciitilde{}', '^': r'\textasciicircum{}'}
     return ''.join(replacements.get(c, c) for c in value)
@@ -57,7 +69,7 @@ Compétences acquises et conclusion.''', 'report'),
 \section*{Exercice 2 — 10 points}
 Énoncé de l’exercice.'''),
     'العربية — Article': r'''\documentclass[12pt]{article}
-% Compile with XeLaTeX. Amiri is used when installed; otherwise Arial.
+% Compile with XeLaTeX. Arial supports Arabic and is available on Windows.
 \setlength{\textwidth}{16cm}
 \setlength{\oddsidemargin}{0cm}
 \setlength{\textheight}{23cm}
@@ -65,7 +77,7 @@ Compétences acquises et conclusion.''', 'report'),
 \usepackage{polyglossia}
 \setdefaultlanguage{arabic}
 \setotherlanguage{french}
-\IfFontExistsTF{Amiri}{\newfontfamily\arabicfont[Script=Arabic]{Amiri}}{\newfontfamily\arabicfont[Script=Arabic]{Arial}}
+\newfontfamily\arabicfont[Script=Arabic]{Arial}
 \newfontfamily\frenchfont{Arial}
 \title{عنوان الوثيقة}
 \author{اسم الكاتب}

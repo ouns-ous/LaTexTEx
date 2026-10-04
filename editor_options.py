@@ -25,7 +25,7 @@ class EditorOptions:
             if re.search(r'\\usepackage(?:\[[^\]]*\])?\{[^}]*(?:babel|polyglossia)[^}]*\}', source):
                 raise ValueError('Ce document configure déjà ses langues. Utilisez le modèle arabe ou adaptez son préambule pour éviter un conflit.')
             source = re.sub(r'\\usepackage(?:\[[^\]]*\])?\{(?:inputenc|fontenc)\}\s*', '', source)
-            preamble = '\\usepackage{fontspec}\n\\usepackage{polyglossia}\n\\setdefaultlanguage{arabic}\n\\setotherlanguage{french}\n\\IfFontExistsTF{Amiri}{\\newfontfamily\\arabicfont[Script=Arabic]{Amiri}}{\\newfontfamily\\arabicfont[Script=Arabic]{Arial}}\n\\newfontfamily\\frenchfont{Arial}\n'
+            preamble = '\\usepackage{fontspec}\n\\usepackage{polyglossia}\n\\setdefaultlanguage{arabic}\n\\setotherlanguage{french}\n\\newfontfamily\\arabicfont[Script=Arabic]{Arial}\n\\newfontfamily\\frenchfont{Arial}\n'
             source = source.replace('\\begin{document}', preamble + '\\begin{document}', 1)
             self.store.save_file(self.project, path, source)
             if doc:

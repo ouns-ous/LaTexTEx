@@ -9,6 +9,7 @@ assert [b.kind for b in model.blocks] == ['section', 'paragraph', 'source']
 with tempfile.TemporaryDirectory(dir=ROOT) as directory:
     app = App(data_dir=Path(directory)/'data', legacy=Path(directory)/'absent')
     app.autosave.set(False)
+    app.auto_preview_on_open = False  # Automatic compilation has its own integration test.
     project = app.store.create('Options', source)
     app.open_project(project); app.update()
     doc = app.active_doc()

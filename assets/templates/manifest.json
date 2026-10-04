@@ -1,0 +1,47 @@
+{
+  "Article": {
+    "key": "8da1e867a48d191014e7993fad6b77fbf63c2c22a41708044dd66d8f168f732b",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "Document vide": {
+    "key": "59824021bdf477c8f51cf392eab577cfb5b7c6b67f511adf32fb3d4509ecc591",
+    "engine": "pdflatex",
+    "blank": true
+  },
+  "Rapport": {
+    "key": "f49e6d380f41eb5aaa6f1f269bb718fd383fc61a4d53cb10a8e26806c9ce1d20",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "Présentation": {
+    "key": "b738afafd48f82692f3321c46115f7532a96e1a8ccafbb0958e1fda4f0004b4f",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "CV": {
+    "key": "59019e04785490b83c2d16ab47e5e850af5dc9da9daea5217424dd0c4afd8b21",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "Mémoire / Thèse": {
+    "key": "648f612c6bb311440cddf9b8f14c0c7f10b4e5b71ebe5aa4af4915bd4209e076",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "Rapport de stage": {
+    "key": "74ba817fb53deb4b2b931320b72981a447d7bf0a380023ca0a40cf7c2caccd46",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "Examen": {
+    "key": "186022b7855c96bd56152c08260395e4fc55dffc0af8c79486151c4ec64463f5",
+    "engine": "pdflatex",
+    "blank": false
+  },
+  "العربية — Article": {
+    "key": "24dbfeeb9c10d316b84ff5424bedf29a6b913df1939d4a141a2694e048d3c0fc",
+    "engine": "xelatex",
+    "blank": false
+  }
+}

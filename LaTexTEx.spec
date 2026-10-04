@@ -5,7 +5,7 @@ a = Analysis(
     ['project_studio.py'],
     pathex=['.vendor'],
     binaries=[],
-    datas=[('assets/fontawesome', 'assets/fontawesome')],
+    datas=[('assets/fontawesome', 'assets/fontawesome'), ('assets/templates', 'assets/templates')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

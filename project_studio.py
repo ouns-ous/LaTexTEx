@@ -165,7 +165,7 @@ Votre contenu ici.
 }
 
 
-from template_catalog import EXTRA_TEMPLATES, DESCRIPTIONS
+from template_catalog import EXTRA_TEMPLATES, DESCRIPTIONS, preview_asset
 TEMPLATES.update(EXTRA_TEMPLATES)
 
 
@@ -343,6 +343,7 @@ class App(EditorOptions, tk.Tk):
         self.proc = None
         self.cancel_compile = False
         self.closing = False
+        self.auto_preview_on_open = True
         self.events = queue.Queue()
         self.home_filter = 'active'
         self.autosave = tk.BooleanVar(value=self.preferences.get('autosave', True))
@@ -437,13 +438,13 @@ class App(EditorOptions, tk.Tk):
             button = self.button(nav, label, callback)
             button.configure(style='Nav.TButton')
             button.pack(side=placement, fill='x', pady=5)
-        content = tk.Frame(self.home_view, bg=BG, padx=30, pady=26)
+        content = tk.Frame(self.home_view, bg=BG, padx=30, pady=18)
         content.pack(fill='both', expand=True)
         self.home_title = tk.StringVar(value='Tous les projets')
-        tk.Label(content, textvariable=self.home_title, font=('Segoe UI', 27, 'bold'), fg=FG, bg=BG, anchor='w').pack(fill='x')
-        tk.Label(content, text='Retrouvez vos documents et reprenez là où vous en étiez.', fg=MUTED, bg=BG, anchor='w', font=('Segoe UI', 11)).pack(fill='x', pady=(5, 24))
+        tk.Label(content, textvariable=self.home_title, font=('Segoe UI', 24, 'bold'), fg=FG, bg=BG, anchor='w').pack(fill='x')
+        tk.Label(content, text='Retrouvez vos documents et reprenez là où vous en étiez.', fg=MUTED, bg=BG, anchor='w', font=('Segoe UI', 11)).pack(fill='x', pady=(5, 12))
         actions = tk.Frame(content, bg=BG)
-        actions.pack(fill='x', pady=(0, 20))
+        actions.pack(fill='x', pady=(0, 12))
         self.query = tk.StringVar()
         search = tk.Frame(actions, bg=PANEL, highlightbackground='#dce5ee', highlightthickness=1, padx=12, pady=9)
         search.pack(side='left')
@@ -459,13 +460,29 @@ class App(EditorOptions, tk.Tk):
         self.button(actions, '+ Nouveau projet', self.new_project, accent=True).pack(side='right')
         self.button(actions, 'Importer ▾', lambda: self.action_menu([('Projet ZIP / Overleaf', self.import_zip), ('Dossier local', self.import_folder), ('Fichier LaTeX', self.open_existing_file)])).pack(side='right', padx=10)
         tk.Label(content, text='Choisissez un modèle', bg=BG, fg=FG, font=('Segoe UI', 13, 'bold'), anchor='w').pack(fill='x')
-        gallery = tk.Frame(content, bg=BG)
-        gallery.pack(fill='x', pady=(8, 16))
+        gallery_canvas = tk.Canvas(content, bg=BG, height=212, highlightthickness=0)
+        gallery_canvas.pack(fill='x', pady=(8, 0))
+        gallery_scroll = ttk.Scrollbar(content, orient='horizontal', command=gallery_canvas.xview)
+        gallery_scroll.pack(fill='x', pady=(0, 16))
+        gallery_canvas.configure(xscrollcommand=gallery_scroll.set)
+        gallery = tk.Frame(gallery_canvas, bg=BG)
+        gallery_canvas.create_window((0, 0), window=gallery, anchor='nw')
+        gallery.bind('<Configure>', lambda e: gallery_canvas.configure(scrollregion=gallery_canvas.bbox('all')))
+        self.template_photos = {}
         for index, title in enumerate(TEMPLATES):
             card = tk.Frame(gallery, bg=PANEL, highlightbackground='#dce5ee', highlightthickness=1, padx=8, pady=5)
-            card.grid(row=index // 5, column=index % 5, sticky='nsew', padx=3, pady=3)
-            gallery.columnconfigure(index % 5, weight=1)
-            self.button(card, title, lambda key=title: self.new_project(key)).pack(fill='x')
+            card.grid(row=0, column=index, sticky='nsew', padx=5, pady=3)
+            image_path = preview_asset(ROOT, TEMPLATES[title], '.png')
+            if image_path:
+                with Image.open(image_path) as image:
+                    image.thumbnail((130, 125), Image.Resampling.LANCZOS)
+                    self.template_photos[title] = ImageTk.PhotoImage(image.copy())
+                thumbnail = tk.Label(card, image=self.template_photos[title], bg='#e8eef4', width=160, height=128, cursor='hand2')
+                thumbnail.pack()
+                thumbnail.bind('<Button-1>', lambda e, key=title: self.new_project(key))
+            else:
+                tk.Label(card, text='Aperçu indisponible', bg='#e8eef4', fg=MUTED, width=22, height=9).pack()
+            self.button(card, title, lambda key=title: self.new_project(key)).pack(fill='x', pady=(4, 0))
             tk.Label(card, text=DESCRIPTIONS[title], bg=PANEL, fg=MUTED, font=('Segoe UI', 9), wraplength=165).pack()
         table_frame = tk.Frame(content, bg=BG)
         table_frame.pack(fill='both', expand=True)
@@ -742,6 +759,9 @@ class App(EditorOptions, tk.Tk):
             if template.get() == 'العربية — Article':
                 project['engine'] = 'xelatex'
                 self.store.touch(project)
+            preview = preview_asset(ROOT, TEMPLATES[template.get()], '.pdf')
+            if preview:
+                shutil.copy2(preview, Path(project['path']) / 'main.pdf')
             dialog.destroy()
             self.open_project(project)
             self.status.set('Projet créé · main.tex enregistré sur le disque')
@@ -830,6 +850,18 @@ class App(EditorOptions, tk.Tk):
             pdf = inside(project['path'], project['main']).with_suffix('.pdf')
             if pdf.exists():
                 self.load_pdf(pdf)
+            else:
+                source = inside(project['path'], project['main']).read_text(encoding='utf-8-sig')
+                preview = preview_asset(ROOT, source, '.pdf')
+                if preview:
+                    shutil.copy2(preview, pdf)
+                    self.load_pdf(pdf)
+                else:
+                    project_id = project['id']
+                    def initial_preview():
+                        if self.auto_preview_on_open and not self.closing and not self.busy and self.project and self.project['id'] == project_id and self.editor_view.winfo_ismapped() and not self.pdf:
+                            self.guard(self.compile)
+                    self.after(250, initial_preview)
         self.status.set('Projet ouvert · ' + project['path'])
 
     def show_home(self):
@@ -1731,8 +1763,10 @@ def self_test():
         app = App(data_dir=Path(temp) / 'data', legacy=Path(temp) / 'absent.json')
         app.withdraw()
         assert app.home_view.winfo_exists() and not app.project
+        assert len(app.template_photos) == len(TEMPLATES), 'Missing bundled template images'
         project = app.store.create('Test Windows', TEMPLATES['Article'])
         app.open_project(project)
+        assert app.pdf and app.pdf.page_count > 0, 'Missing immediate template PDF'
         file = app.store.new_file(project, 'chapitre.tex', '% Chapitre\n')
         app.refresh_files()
         app.open_document(file)
