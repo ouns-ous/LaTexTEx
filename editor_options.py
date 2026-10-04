@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
+from template_catalog import table_source, escape_text
 from PIL import ImageOps
 from visual_editor import VisualView, escaped
 
@@ -11,11 +12,34 @@ PANEL, FG, GREEN, NAV = '#ffffff', '#203149', '#07845e', '#182a38'
 
 
 class EditorOptions:
+    def enable_arabic(self):
+        if self.readonly or not self.project or not self.save_all():
+            return
+        from project_store import inside
+        path = inside(self.project['path'], self.project['main'])
+        doc = self.docs.get(path)
+        source = doc.content() if doc else path.read_text(encoding='utf-8-sig')
+        if '\\begin{document}' not in source:
+            raise ValueError('Le document principal doit contenir \\begin{document}.')
+        if '\\setdefaultlanguage{arabic}' not in source:
+            if re.search(r'\\usepackage(?:\[[^\]]*\])?\{[^}]*(?:babel|polyglossia)[^}]*\}', source):
+                raise ValueError('Ce document configure déjà ses langues. Utilisez le modèle arabe ou adaptez son préambule pour éviter un conflit.')
+            source = re.sub(r'\\usepackage(?:\[[^\]]*\])?\{(?:inputenc|fontenc)\}\s*', '', source)
+            preamble = '\\usepackage{fontspec}\n\\usepackage{polyglossia}\n\\setdefaultlanguage{arabic}\n\\setotherlanguage{french}\n\\IfFontExistsTF{Amiri}{\\newfontfamily\\arabicfont[Script=Arabic]{Amiri}}{\\newfontfamily\\arabicfont[Script=Arabic]{Arial}}\n\\newfontfamily\\frenchfont{Arial}\n'
+            source = source.replace('\\begin{document}', preamble + '\\begin{document}', 1)
+            self.store.save_file(self.project, path, source)
+            if doc:
+                doc.reload()
+        self.project['engine'] = 'xelatex'
+        self.store.touch(self.project)
+        self.open_project(self.project)
+        self.status.set('Arabe activé · XeLaTeX · texte français dans un environnement french')
+
     def build_main_menus(self, parent):
         menus = {
             'File': [('Accueil des projets', self.show_home), ('Nouveau projet', self.new_project), ('Nouveau fichier', self.new_file), ('Ouvrir un fichier', self.open_existing_file), ('Enregistrer tout · Ctrl+S', self.save_all), ('Fermer l’onglet', self.close_tab), ('Exporter le fichier actif', self.export_active_source), ('Exporter le projet ZIP', self.export_zip), ('Exporter PDF', self.export_pdf)],
             'Edit': [('Annuler · Ctrl+Z', lambda: self.edit_action('edit_undo')), ('Rétablir', lambda: self.edit_action('edit_redo')), ('Couper', lambda: self.clip_action('<<Cut>>')), ('Copier', lambda: self.clip_action('<<Copy>>')), ('Coller', lambda: self.clip_action('<<Paste>>')), ('Tout sélectionner', self.select_all), ('Rechercher / remplacer', self.search_dialog), ('Commenter / décommenter', self.toggle_comment)],
-            'Insert': [('Titre / section', self.heading_dialog), ('Équation', lambda: self.insert_latex('\\begin{equation}\n', '\n\\end{equation}\n')), ('Symboles mathématiques', self.symbols_dialog), ('Lien', self.insert_link), ('Image / figure', self.insert_image), ('Tableau', self.table_dialog), ('Liste à puces', lambda: self.insert_latex('\\begin{itemize}\n  \\item ', '\n\\end{itemize}\n')), ('Liste numérotée', lambda: self.insert_latex('\\begin{enumerate}\n  \\item ', '\n\\end{enumerate}\n')), ('Citation', lambda: self.insert_latex('\\cite{', '}')), ('Référence', lambda: self.insert_latex('\\ref{', '}')), ('Label', lambda: self.insert_latex('\\label{', '}')), ('Commentaire local', self.comments_dialog)],
+            'Insert': [('Titre / section', self.heading_dialog), ('Équation', lambda: self.insert_latex('\\begin{equation}\n', '\n\\end{equation}\n')), ('Activer la langue arabe (XeLaTeX)', self.enable_arabic), ('Symboles mathématiques', self.symbols_dialog), ('Lien', self.insert_link), ('Image / figure', self.insert_image), ('Tableau', self.table_dialog), ('Liste à puces', lambda: self.insert_latex('\\begin{itemize}\n  \\item ', '\n\\end{itemize}\n')), ('Liste numérotée', lambda: self.insert_latex('\\begin{enumerate}\n  \\item ', '\n\\end{enumerate}\n')), ('Citation', lambda: self.insert_latex('\\cite{', '}')), ('Référence', lambda: self.insert_latex('\\ref{', '}')), ('Label', lambda: self.insert_latex('\\label{', '}')), ('Commentaire local', self.comments_dialog)],
             'View': [('Éditeur et PDF', lambda: self.set_layout('split')), ('Éditeur seul', lambda: self.set_layout('editor')), ('PDF seul', lambda: self.set_layout('pdf')), ('Afficher / masquer les fichiers', self.toggle_sidebar), ('Journal et erreurs', self.toggle_log), ('Code', lambda: self.set_edit_mode('Code')), ('Visual', lambda: self.set_edit_mode('Visual')), ('PDF clair / sombre', self.toggle_pdf_dark), ('Plein écran · F11', lambda: self.attributes('-fullscreen', not self.attributes('-fullscreen')))],
             'Format': [('Gras', lambda: self.format_text('bold')), ('Italique', lambda: self.format_text('italic')), ('Souligner', lambda: self.insert_latex('\\underline{', '}')), ('Titre / section', self.heading_dialog), ('Indenter', lambda: self.indent_lines(1)), ('Désindenter', lambda: self.indent_lines(-1)), ('Retour à la ligne', self.toggle_wrap), ('Taille du texte', self.preferences_dialog)],
             'Help': [('Guide & raccourcis', self.help_dialog), ('Assistant LaTeX local', self.assistant_dialog), ('À propos / version locale', self.upgrade_dialog)],
@@ -250,21 +274,80 @@ class EditorOptions:
             if was_visual:self.return_to_visual()
 
     def table_dialog(self):
-        columns = simpledialog.askinteger('Insérer un tableau', 'Nombre de colonnes (1–8) :', initialvalue=2, minvalue=1, maxvalue=8, parent=self)
-        if columns is None:
+        if self.readonly or not self.project:
             return
-        rows = simpledialog.askinteger('Insérer un tableau', 'Nombre de lignes (1–30) :', initialvalue=3, minvalue=1, maxvalue=30, parent=self)
-        if rows:
-            body = '\\begin{tabular}{' + '|' + '|'.join('l' for _ in range(columns)) + '|}\n\\hline\n'
-            for index in range(rows):
-                body += ' & '.join(f'Colonne {i+1}' if index == 0 else 'Texte' for i in range(columns)) + ' \\\\\n\\hline\n'
-            self.insert_latex(body, '\\end{tabular}\n')
+        dialog = tk.Toplevel(self)
+        dialog.title('Créer un tableau')
+        dialog.geometry('750x520')
+        settings = tk.Frame(dialog)
+        settings.pack(fill='x', padx=12, pady=12)
+        rows, columns = tk.IntVar(value=4), tk.IntVar(value=3)
+        for label, variable, maximum in [('Lignes', rows, 30), ('Colonnes', columns, 8)]:
+            ttk.Label(settings, text=label).pack(side='left', padx=5)
+            ttk.Spinbox(settings, from_=1, to=maximum, textvariable=variable, width=5).pack(side='left')
+        caption = tk.StringVar()
+        ttk.Label(dialog, text='Titre du tableau (facultatif)').pack(anchor='w', padx=12)
+        ttk.Entry(dialog, textvariable=caption).pack(fill='x', padx=12, pady=5)
+        canvas = tk.Canvas(dialog, highlightthickness=0)
+        canvas.pack(fill='both', expand=True, padx=12)
+        scrollbar = ttk.Scrollbar(dialog, orient='vertical', command=canvas.yview)
+        scrollbar.pack(side='right', fill='y')
+        horizontal = ttk.Scrollbar(dialog, orient='horizontal', command=canvas.xview)
+        horizontal.pack(fill='x', padx=12)
+        canvas.configure(yscrollcommand=scrollbar.set, xscrollcommand=horizontal.set)
+        grid = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=grid, anchor='nw')
+        grid.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        cells = []
+        def rebuild():
+            nr, nc = rows.get(), columns.get()
+            if not 1 <= nr <= 30 or not 1 <= nc <= 8:
+                raise ValueError('Choisissez 1–30 lignes et 1–8 colonnes.')
+            previous = [[entry.get() for entry in row] for row in cells]
+            for child in grid.winfo_children():
+                child.destroy()
+            cells.clear()
+            for r in range(nr):
+                row = []
+                for c in range(nc):
+                    entry = ttk.Entry(grid, width=18)
+                    entry.grid(row=r, column=c, padx=2, pady=3)
+                    entry.insert(0, previous[r][c] if r < len(previous) and c < len(previous[r]) else (f'Colonne {c+1}' if r == 0 else ''))
+                    row.append(entry)
+                cells.append(row)
+        self.button(settings, 'Actualiser la grille', rebuild).pack(side='left', padx=10)
+        def insert():
+            self.insert_latex(table_source([[e.get() for e in row] for row in cells], caption.get()), '')
+            dialog.destroy()
+        self.button(dialog, 'Insérer le tableau', insert, accent=True).pack(pady=12)
+        rebuild()
 
     def insert_image(self):
         if self.readonly or not self.project:
             return
         raw = filedialog.askopenfilename(title='Insérer une image', filetypes=[('Images LaTeX', '*.png *.jpg *.jpeg *.pdf')])
         if not raw:
+            return
+        options = tk.Toplevel(self)
+        options.title('Image — taille et légende')
+        options.transient(self)
+        width = tk.IntVar(value=80)
+        caption = tk.StringVar()
+        ttk.Label(options, text='Largeur (% de la ligne, 10–100)').pack(padx=20, pady=(15, 5))
+        ttk.Spinbox(options, from_=10, to=100, textvariable=width, width=10).pack()
+        ttk.Label(options, text='Légende (facultative)').pack(pady=(10, 5))
+        ttk.Entry(options, textvariable=caption, width=45).pack(padx=20)
+        accepted = []
+        def accept():
+            value = width.get()
+            if not 10 <= value <= 100:
+                raise ValueError('La largeur doit être entre 10 et 100 %.')
+            accepted.append(value)
+            options.destroy()
+        self.button(options, 'Insérer', accept, accent=True).pack(pady=15)
+        options.grab_set()
+        self.wait_window(options)
+        if not accepted:
             return
         import shutil
         source = Path(raw).resolve()
@@ -282,7 +365,10 @@ class EditorOptions:
         was_visual=self.prepare_source_edit()
         self.ensure_package('graphicx')
         relative = target.relative_to(Path(self.project['path'])).as_posix()
-        self.insert_latex('\\begin{figure}[ht]\n\\centering\n\\includegraphics[width=0.8\\textwidth]{' + relative + '}\n\\caption{', '}\n\\end{figure}\n')
+        figure = '\\begin{figure}[ht]\n\\centering\n\\includegraphics[width=' + str(accepted[0] / 100) + '\\linewidth]{' + relative + '}\n'
+        if caption.get().strip():
+            figure += '\\caption{' + escape_text(caption.get()) + '}\n'
+        self.insert_latex(figure + '\\end{figure}\n', '')
         self.refresh_files()
         if was_visual:self.return_to_visual()
 

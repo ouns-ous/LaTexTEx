@@ -2,6 +2,7 @@
 from __future__ import annotations
 from datetime import datetime
 import json
+import difflib
 import os
 from pathlib import Path
 import queue
@@ -162,6 +163,10 @@ Votre contenu ici.
 \end{document}
 ''',
 }
+
+
+from template_catalog import EXTRA_TEMPLATES, DESCRIPTIONS
+TEMPLATES.update(EXTRA_TEMPLATES)
 
 
 class Document:
@@ -453,6 +458,15 @@ class App(EditorOptions, tk.Tk):
         self.query.trace_add('write', lambda *_: self.refresh_home())
         self.button(actions, '+ Nouveau projet', self.new_project, accent=True).pack(side='right')
         self.button(actions, 'Importer ▾', lambda: self.action_menu([('Projet ZIP / Overleaf', self.import_zip), ('Dossier local', self.import_folder), ('Fichier LaTeX', self.open_existing_file)])).pack(side='right', padx=10)
+        tk.Label(content, text='Choisissez un modèle', bg=BG, fg=FG, font=('Segoe UI', 13, 'bold'), anchor='w').pack(fill='x')
+        gallery = tk.Frame(content, bg=BG)
+        gallery.pack(fill='x', pady=(8, 16))
+        for index, title in enumerate(TEMPLATES):
+            card = tk.Frame(gallery, bg=PANEL, highlightbackground='#dce5ee', highlightthickness=1, padx=8, pady=5)
+            card.grid(row=index // 5, column=index % 5, sticky='nsew', padx=3, pady=3)
+            gallery.columnconfigure(index % 5, weight=1)
+            self.button(card, title, lambda key=title: self.new_project(key)).pack(fill='x')
+            tk.Label(card, text=DESCRIPTIONS[title], bg=PANEL, fg=MUTED, font=('Segoe UI', 9), wraplength=165).pack()
         table_frame = tk.Frame(content, bg=BG)
         table_frame.pack(fill='both', expand=True)
         self.projects_table = ttk.Treeview(table_frame, columns=('name', 'main', 'engine', 'date'), show='headings', selectmode='browse', style='Projects.Treeview')
@@ -710,7 +724,7 @@ class App(EditorOptions, tk.Tk):
                 self.project_state('active')
             self.open_project(project)
 
-    def new_project(self):
+    def new_project(self, selected_template='Article'):
         dialog = tk.Toplevel(self)
         dialog.title('Nouveau projet')
         dialog.configure(bg=PANEL)
@@ -720,11 +734,14 @@ class App(EditorOptions, tk.Tk):
         name = tk.StringVar(value='Mon projet')
         entry = ttk.Entry(dialog, textvariable=name, width=42, font=('Segoe UI', 12))
         entry.pack(padx=24, pady=7)
-        template = tk.StringVar(value='Article')
+        template = tk.StringVar(value=selected_template)
         ttk.Combobox(dialog, values=list(TEMPLATES), textvariable=template, state='readonly', width=40).pack(padx=24, pady=8)
         tk.Label(dialog, text='Un dossier et un main.tex seront créés immédiatement.', bg=PANEL, fg=MUTED).pack(padx=24, pady=8)
         def create():
             project = self.store.create(name.get(), TEMPLATES[template.get()])
+            if template.get() == 'العربية — Article':
+                project['engine'] = 'xelatex'
+                self.store.touch(project)
             dialog.destroy()
             self.open_project(project)
             self.status.set('Projet créé · main.tex enregistré sur le disque')
@@ -1178,7 +1195,7 @@ class App(EditorOptions, tk.Tk):
             return
         project = self.project
         dialog = tk.Toplevel(self)
-        dialog.title('Historique local — versions sauvegardées')
+        dialog.title('Versions — aperçu, comparaison et restauration')
         dialog.geometry('850x560')
         table = ttk.Treeview(dialog, columns=('date', 'file'), show='headings', height=8)
         table.heading('date', text='Date de sauvegarde de la version précédente')
@@ -1212,7 +1229,30 @@ class App(EditorOptions, tk.Tk):
                 self.refresh_files()
                 dialog.destroy()
         table.bind('<<TreeviewSelect>>', show)
-        self.button(dialog, 'Restaurer la version sélectionnée', restore, accent=True).pack(pady=12)
+        def compare():
+            item = selected()
+            if not item:
+                return
+            old = (Path(project['path']) / '.latextex' / 'history' / (item['id'] + '.txt')).read_text(encoding='utf-8-sig')
+            current = inside(project['path'], item['file'])
+            text = current.read_text(encoding='utf-8-sig') if current.exists() else ''
+            diff = ''.join(difflib.unified_diff(old.splitlines(True), text.splitlines(True), fromfile='Version sauvegardée', tofile='Version actuelle'))
+            preview.configure(state='normal')
+            preview.delete('1.0', 'end')
+            preview.insert('1.0', diff or 'Aucune différence.')
+            preview.configure(state='disabled')
+        def checkpoint():
+            if not self.save_all():
+                return
+            for path in sources(project['path']):
+                self.store.snapshot(project, path)
+            dialog.destroy()
+            self.history_dialog()
+        actions = tk.Frame(dialog)
+        actions.pack(fill='x', padx=10, pady=10)
+        self.button(actions, 'Comparer avec maintenant', compare).pack(side='left')
+        self.button(actions, 'Sauvegarder une version', checkpoint).pack(side='left', padx=6)
+        self.button(actions, 'Restaurer', restore, accent=True).pack(side='right')
 
     def preferences_dialog(self):
         dialog = tk.Toplevel(self)

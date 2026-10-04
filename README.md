@@ -29,6 +29,16 @@ Les documents personnels, préférences locales et fichiers temporaires de compi
 
 ## Présentation
 
+## Nouveautés : modèles et outils de rédaction
+
+- Galerie de neuf modèles à l’accueil : article, document vide, rapport, présentation, CV, mémoire/thèse, rapport de stage, examen et article arabe.
+- Le modèle arabe configure le sens de lecture via Polyglossia et utilise XeLaTeX avec Amiri, ou Arial si Amiri est absent. Le menu Insert permet aussi d’activer l’arabe dans un document existant sans configuration de langues préalable. Les packages LaTeX requis doivent être installés. Le mode Code conserve les commandes LaTeX ; le rendu arabe se vérifie dans le PDF.
+- Images : largeur de 10 à 100 % de la ligne et légende facultative, copie dans le projet sans écraser une image existante.
+- Tableaux : grille éditable, jusqu’à 30 lignes et 8 colonnes, légende et échappement automatique des caractères spéciaux.
+- History : sauvegarde manuelle des fichiers texte, comparaison avec la version actuelle et restauration avec conservation du contenu précédent. Les copies complètes de projets restent accessibles par Actions du projet → Dupliquer.
+
+`python verify_templates.py` compile les neuf modèles et vérifie les dialogues de création arabe, tableaux et historique.
+
 Application locale Windows avec accueil des projets, éditeur multi-fichiers et aperçu PDF intégré, inspirée de la navigation d’Overleaf.
 
 L’interface utilise une navigation sombre, un espace de travail clair et des boutons avec états de survol et navigation au clavier. Les actions secondaires sont regroupées dans les menus Importer, Actions du projet et Projet. Les options de compilation sont dans Paramètres de compilation. Le journal est replié par défaut, accessible via Journal & erreurs et affiché automatiquement en cas d’échec.
