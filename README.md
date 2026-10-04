@@ -42,6 +42,8 @@ Les documents personnels, préférences locales et fichiers temporaires de compi
 
 `python build_template_previews.py` régénère les images et PDF des modèles (MiKTeX requis). `python verify_preview_gallery.py` vérifie les neuf miniatures, les aperçus immédiats et le démarrage automatique de compilation.
 
+La galerie défile horizontalement avec la molette ou le touchpad, y compris au-dessus des images et des boutons. Les petites impulsions de touchpad sont conservées. Les flèches de navigation et la barre horizontale permettent aussi de parcourir tous les modèles.
+
 ![Galerie de modèles](preview-gallery.png)
 
 La création, la recherche, les préférences, l’historique et les outils d’insertion s’ouvrent dans un panneau intégré à droite de l’application, sans fenêtre supplémentaire. « Agrandir » utilise tout l’espace de travail et « Réduire » revient à la taille initiale. « Fermer » ou Échap ferme le panneau ; la navigation reste disponible. Les cartes et boutons ont des angles arrondis et la création affiche le modèle sélectionné avant validation.

@@ -471,8 +471,17 @@ class App(EditorOptions, tk.Tk):
         self.query.trace_add('write', lambda *_: self.refresh_home())
         self.button(actions, '+ Nouveau projet', self.new_project, accent=True).pack(side='right')
         self.button(actions, 'Importer ▾', lambda: self.action_menu([('Projet ZIP / Overleaf', self.import_zip), ('Dossier local', self.import_folder), ('Fichier LaTeX', self.open_existing_file)])).pack(side='right', padx=10)
-        tk.Label(content, text='Choisissez un modèle', bg=BG, fg=FG, font=('Segoe UI', 13, 'bold'), anchor='w').pack(fill='x')
-        gallery_canvas = tk.Canvas(content, bg=BG, height=224, highlightthickness=0)
+        gallery_header = tk.Frame(content, bg=BG)
+        gallery_header.pack(fill='x')
+        tk.Label(gallery_header, text='Choisissez un modèle', bg=BG, fg=FG, font=('Segoe UI', 13, 'bold'), anchor='w').pack(side='left')
+        gallery_canvas = tk.Canvas(content, bg=BG, height=224, highlightthickness=0, xscrollincrement=1, takefocus=True)
+        self.gallery_canvas = gallery_canvas
+        self.gallery_remainder = 0.0
+        self.gallery_next = self.button(gallery_header, '›', lambda: gallery_canvas.xview_scroll(190, 'units'), width=2)
+        self.gallery_previous = self.button(gallery_header, '‹', lambda: gallery_canvas.xview_scroll(-190, 'units'), width=2)
+        for button in (self.gallery_next, self.gallery_previous):
+            button.configure(style='Mini.TButton')
+            button.pack(side='right', padx=3)
         gallery_canvas.pack(fill='x', pady=(8, 0))
         gallery_scroll = ttk.Scrollbar(content, orient='horizontal', command=gallery_canvas.xview)
         gallery_scroll.pack(fill='x', pady=(0, 16))
@@ -496,6 +505,15 @@ class App(EditorOptions, tk.Tk):
                 tk.Label(card, text='Aperçu indisponible', bg='#e8eef4', fg=MUTED, width=22, height=9).pack()
             self.button(card, title, lambda key=title: self.new_project(key)).pack(fill='x', pady=(4, 0))
             tk.Label(card, text=DESCRIPTIONS[title], bg=PANEL, fg=MUTED, font=('Segoe UI', 9), wraplength=165).pack()
+        def bind_gallery_scroll(widget):
+            widget.bind('<MouseWheel>', self.scroll_templates)
+            widget.bind('<Shift-MouseWheel>', self.scroll_templates)
+            widget.bind('<Left>', lambda e: (gallery_canvas.xview_scroll(-190, 'units'), 'break')[1])
+            widget.bind('<Right>', lambda e: (gallery_canvas.xview_scroll(190, 'units'), 'break')[1])
+            for child in widget.winfo_children():
+                bind_gallery_scroll(child)
+        bind_gallery_scroll(gallery_canvas)
+        gallery_scroll.bind('<MouseWheel>', self.scroll_templates)
         table_frame = tk.Frame(content, bg=BG)
         table_frame.pack(fill='both', expand=True)
         self.projects_table = ttk.Treeview(table_frame, columns=('name', 'main', 'engine', 'date'), show='headings', selectmode='browse', style='Projects.Treeview')
@@ -752,6 +770,20 @@ class App(EditorOptions, tk.Tk):
             if project['state'] == 'trash':
                 self.project_state('active')
             self.open_project(project)
+
+    def scroll_templates(self, event):
+        if not self.home_view.winfo_ismapped():
+            return
+        self.gallery_remainder -= event.delta * 64 / 120
+        pixels = int(self.gallery_remainder)
+        self.gallery_remainder -= pixels
+        if pixels:
+            self.gallery_canvas.xview_scroll(pixels, 'units')
+            # Do not accumulate motion against either end of the gallery.
+            first, last = self.gallery_canvas.xview()
+            if (pixels < 0 and first <= 0) or (pixels > 0 and last >= 1):
+                self.gallery_remainder = 0.0
+        return 'break'
 
     def new_project(self, selected_template='Article'):
         dialog = SoftDialog(self)
