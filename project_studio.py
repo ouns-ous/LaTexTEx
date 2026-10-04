@@ -20,6 +20,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from latex_studio import ROOT, SAMPLE, Studio, find_engine, pymupdf, Image, ImageTk
 from project_store import ProjectStore, TEXT_SUFFIXES, HIDDEN_DIRS, sources, inside, write_json
 
+from soft_ui import SoftDialog, SoftCard
 from ui_icons import ICONS, TIPS, CAPTIONS, draw_icon
 
 BG = '#f3f6fa'
@@ -128,7 +129,7 @@ class ModernButton(tk.Canvas):
             fill, ink, border = '#e4ece9', '#8d9d96', '#e4ece9'
         if self.focus_get() == self:
             border = '#58bfa5'
-        radius = 10 if not self.small else 7
+        radius = 14 if not self.small else 9
         points = [2+radius,2,width-2-radius,2,width-2,2,width-2,2+radius,width-2,height-2-radius,width-2,height-2,width-2-radius,height-2,2+radius,height-2,2,height-2,2,height-2-radius,2,2+radius,2,2]
         self.create_polygon(points, smooth=True, splinesteps=20, fill=fill, outline=border)
         if self.icon_name:
@@ -321,12 +322,21 @@ from editor_options import EditorOptions
 class App(EditorOptions, tk.Tk):
     def __init__(self, data_dir=None, legacy=None):
         super().__init__()
+        self.withdraw()
         self.title('LaTexTEx — Vos projets')
         if (ROOT / 'app.ico').exists():
             self.iconbitmap(str(ROOT / 'app.ico'))
-        self.geometry(f'{min(1450, self.winfo_screenwidth() - 60)}x{min(900, self.winfo_screenheight() - 95)}+25+25')
+        window_width = min(1450, self.winfo_screenwidth() - 60)
+        window_height = min(900, self.winfo_screenheight() - 95)
+        window_x = (self.winfo_screenwidth() - window_width) // 2
+        window_y = max(30, (self.winfo_screenheight() - window_height) // 2 - 20)
+        self.geometry(f'{window_width}x{window_height}+{window_x}+{window_y}')
         self.minsize(1020, 610)
         self.configure(bg=BG)
+        self.option_add('*Frame.background', PANEL)
+        self.option_add('*Label.background', PANEL)
+        self.option_add('*Label.foreground', FG)
+        self.option_add('*Font', ('Segoe UI', 11))
         self.store = ProjectStore(data_dir or ROOT / 'user-data', legacy or ROOT / 'workspace.json')
         self.preferences_path = self.store.root / 'preferences.json'
         self.preferences = json.loads(self.preferences_path.read_text(encoding='utf-8')) if self.preferences_path.exists() else {}
@@ -373,6 +383,7 @@ class App(EditorOptions, tk.Tk):
         self.protocol('WM_DELETE_WINDOW', self.on_close)
         self.after(100, self.poll)
         self.after(2000, self.auto_save)
+        self.deiconify()
 
     def button(self, parent, text, command, accent=False, **kwargs):
         return ModernButton(parent, text, lambda: self.guard(command), accent=accent, **kwargs)
@@ -414,7 +425,8 @@ class App(EditorOptions, tk.Tk):
         style.configure('TCheckbutton', background=PANEL, foreground=FG)
         style.configure('TCombobox', fieldbackground=PANEL, background=PANEL, foreground=FG, bordercolor='#dce5ee', arrowcolor=MUTED, padding=7, relief='flat')
         style.map('TCombobox', fieldbackground=[('readonly', PANEL)], foreground=[('readonly', FG)])
-        style.configure('TEntry', fieldbackground=PANEL, foreground=FG, bordercolor='#dce5ee', padding=6)
+        style.configure('TEntry', fieldbackground='#f8fafc', foreground=FG, bordercolor='#e4ebf2', lightcolor='#e4ebf2', darkcolor='#e4ebf2', padding=9)
+        style.map('TEntry', bordercolor=[('focus', '#62bca7')], lightcolor=[('focus', '#62bca7')], darkcolor=[('focus', '#62bca7')])
         style.configure('TFrame', background=PANEL)
         style.configure('TLabel', background=PANEL, foreground=FG)
         for orientation in ('Vertical', 'Horizontal'):
@@ -460,7 +472,7 @@ class App(EditorOptions, tk.Tk):
         self.button(actions, '+ Nouveau projet', self.new_project, accent=True).pack(side='right')
         self.button(actions, 'Importer ▾', lambda: self.action_menu([('Projet ZIP / Overleaf', self.import_zip), ('Dossier local', self.import_folder), ('Fichier LaTeX', self.open_existing_file)])).pack(side='right', padx=10)
         tk.Label(content, text='Choisissez un modèle', bg=BG, fg=FG, font=('Segoe UI', 13, 'bold'), anchor='w').pack(fill='x')
-        gallery_canvas = tk.Canvas(content, bg=BG, height=212, highlightthickness=0)
+        gallery_canvas = tk.Canvas(content, bg=BG, height=224, highlightthickness=0)
         gallery_canvas.pack(fill='x', pady=(8, 0))
         gallery_scroll = ttk.Scrollbar(content, orient='horizontal', command=gallery_canvas.xview)
         gallery_scroll.pack(fill='x', pady=(0, 16))
@@ -470,7 +482,7 @@ class App(EditorOptions, tk.Tk):
         gallery.bind('<Configure>', lambda e: gallery_canvas.configure(scrollregion=gallery_canvas.bbox('all')))
         self.template_photos = {}
         for index, title in enumerate(TEMPLATES):
-            card = tk.Frame(gallery, bg=PANEL, highlightbackground='#dce5ee', highlightthickness=1, padx=8, pady=5)
+            card = SoftCard(gallery)
             card.grid(row=0, column=index, sticky='nsew', padx=5, pady=3)
             image_path = preview_asset(ROOT, TEMPLATES[title], '.png')
             if image_path:
@@ -661,7 +673,7 @@ class App(EditorOptions, tk.Tk):
             self.log_toggle.configure(text='Masquer le journal')
 
     def compilation_settings(self):
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Paramètres de compilation')
         dialog.configure(bg=PANEL)
         dialog.transient(self)
@@ -742,17 +754,35 @@ class App(EditorOptions, tk.Tk):
             self.open_project(project)
 
     def new_project(self, selected_template='Article'):
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Nouveau projet')
         dialog.configure(bg=PANEL)
         dialog.resizable(False, False)
         dialog.transient(self)
         tk.Label(dialog, text='Créer un projet LaTeX', bg=PANEL, fg=FG, font=('Segoe UI', 17, 'bold')).pack(padx=24, pady=(20, 12))
+        tk.Label(dialog, text='Choisissez un modèle, donnez-lui un nom et commencez.', fg=MUTED, font=('Segoe UI', 10)).pack(padx=24, pady=(0, 16))
         name = tk.StringVar(value='Mon projet')
+        tk.Label(dialog, text='Nom du projet', font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=24)
         entry = ttk.Entry(dialog, textvariable=name, width=42, font=('Segoe UI', 12))
         entry.pack(padx=24, pady=7)
         template = tk.StringVar(value=selected_template)
-        ttk.Combobox(dialog, values=list(TEMPLATES), textvariable=template, state='readonly', width=40).pack(padx=24, pady=8)
+        tk.Label(dialog, text='Modèle', font=('Segoe UI', 10, 'bold')).pack(anchor='w', padx=24, pady=(10, 0))
+        selector = ttk.Combobox(dialog, values=list(TEMPLATES), textvariable=template, state='readonly', width=40)
+        selector.pack(padx=24, pady=8)
+        selected_preview = tk.Label(dialog, bg='#f5f8fb', padx=18, pady=12)
+        selected_preview.pack(fill='x', padx=24, pady=(8, 4))
+        description = tk.StringVar()
+        tk.Label(dialog, textvariable=description, fg=MUTED, font=('Segoe UI', 10)).pack(pady=(4, 8))
+        def update_preview(event=None):
+            image_path = preview_asset(ROOT, TEMPLATES[template.get()], '.png')
+            if image_path:
+                with Image.open(image_path) as image:
+                    image.thumbnail((160, 145), Image.Resampling.LANCZOS)
+                    selected_preview.photo = ImageTk.PhotoImage(image.copy())
+                selected_preview.configure(image=selected_preview.photo)
+            description.set(DESCRIPTIONS[template.get()])
+        selector.bind('<<ComboboxSelected>>', update_preview)
+        update_preview()
         tk.Label(dialog, text='Un dossier et un main.tex seront créés immédiatement.', bg=PANEL, fg=MUTED).pack(padx=24, pady=8)
         def create():
             project = self.store.create(name.get(), TEMPLATES[template.get()])
@@ -1161,7 +1191,7 @@ class App(EditorOptions, tk.Tk):
         self.set_edit_mode('Code')
         if not self.project:
             return
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Rechercher / remplacer')
         dialog.geometry('780x460')
         query, replace = tk.StringVar(), tk.StringVar()
@@ -1226,7 +1256,7 @@ class App(EditorOptions, tk.Tk):
         if not self.project or not self.save_all():
             return
         project = self.project
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Versions — aperçu, comparaison et restauration')
         dialog.geometry('850x560')
         table = ttk.Treeview(dialog, columns=('date', 'file'), show='headings', height=8)
@@ -1287,7 +1317,7 @@ class App(EditorOptions, tk.Tk):
         self.button(actions, 'Restaurer', restore, accent=True).pack(side='right')
 
     def preferences_dialog(self):
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Préférences de l’éditeur')
         dialog.configure(bg=PANEL)
         tk.Label(dialog, text='Taille du texte', bg=PANEL, fg=FG).pack(padx=25, pady=(20, 7))
@@ -1313,7 +1343,7 @@ class App(EditorOptions, tk.Tk):
         if not self.project:
             return
         project = self.project
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Commentaires locaux du projet')
         dialog.geometry('780x520')
         table = ttk.Treeview(dialog, columns=('state', 'file', 'line', 'text'), show='headings')
@@ -1430,7 +1460,7 @@ class App(EditorOptions, tk.Tk):
     def trash_dialog(self):
         if not self.project:
             return
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Corbeille des fichiers')
         table = ttk.Treeview(dialog, columns=('file', 'date'), show='headings')
         table.heading('file', text='Fichier / dossier')

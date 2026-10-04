@@ -1,6 +1,7 @@
 """Conservative visual LaTeX editing: untouched and advanced source is preserved."""
 from dataclasses import dataclass
 import re
+from soft_ui import SoftDialog
 import tkinter as tk
 from tkinter import ttk
 
@@ -427,7 +428,7 @@ class VisualView(tk.Frame):
 
     def edit_source_dialog(self,title,raw,apply):
         if self.app.readonly:return
-        dialog=tk.Toplevel(self.app);dialog.title(title);dialog.geometry('640x330');dialog.transient(self.app);dialog.grab_set()
+        dialog=SoftDialog(self.app);dialog.title(title);dialog.geometry('640x330');dialog.transient(self.app);dialog.grab_set()
         tk.Label(dialog,text='Modifiez le LaTeX ; le rendu se met à jour après validation.',anchor='w',padx=14,pady=12).pack(fill='x')
         text=tk.Text(dialog,undo=True,font=('Consolas',12),wrap='word',padx=12,pady=10);text.pack(fill='both',expand=True,padx=12);text.insert('1.0',raw)
         self.app.button(dialog,'Appliquer',lambda:(apply(text.get('1.0','end-1c')),dialog.destroy()),accent=True).pack(side='right',padx=12,pady=10)
@@ -454,7 +455,7 @@ class VisualView(tk.Frame):
                     if source[last]=='}':depth-=1
                     last+=1
                 if not depth:values[name]=(first,last-1,source[first:last-1])
-        dialog=tk.Toplevel(self.app);dialog.title('Titre du document');dialog.transient(self.app);dialog.grab_set()
+        dialog=SoftDialog(self.app);dialog.title('Titre du document');dialog.transient(self.app);dialog.grab_set()
         variables={}
         for name,label in [('title','Titre'),('author','Auteur'),('date','Date (LaTeX accepté)')]:
             tk.Label(dialog,text=label,anchor='w').pack(fill='x',padx=18,pady=(10,3))

@@ -44,6 +44,8 @@ Les documents personnels, préférences locales et fichiers temporaires de compi
 
 ![Galerie de modèles](preview-gallery.png)
 
+Les fenêtres de création, recherche, préférences, historique et insertion s’ouvrent au centre de l’application avec une apparition progressive. Les cartes et boutons ont des angles arrondis, les champs des bordures discrètes et la création de projet affiche le modèle sélectionné avant validation. Échap ferme les fenêtres secondaires.
+
 Application locale Windows avec accueil des projets, éditeur multi-fichiers et aperçu PDF intégré, inspirée de la navigation d’Overleaf.
 
 L’interface utilise une navigation sombre, un espace de travail clair et des boutons avec états de survol et navigation au clavier. Les actions secondaires sont regroupées dans les menus Importer, Actions du projet et Projet. Les options de compilation sont dans Paramètres de compilation. Le journal est replié par défaut, accessible via Journal & erreurs et affiché automatiquement en cas d’échec.

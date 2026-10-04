@@ -5,6 +5,7 @@ import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from template_catalog import table_source, escape_text
+from soft_ui import SoftDialog
 from PIL import ImageOps
 from visual_editor import VisualView, escaped
 
@@ -235,7 +236,7 @@ class EditorOptions:
         self.render_pdf()
 
     def symbols_dialog(self):
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Symboles mathématiques')
         dialog.configure(bg=PANEL)
         symbols = [('α', 'alpha'), ('β', 'beta'), ('γ', 'gamma'), ('δ', 'delta'), ('θ', 'theta'), ('λ', 'lambda'), ('μ', 'mu'), ('π', 'pi'), ('ρ', 'rho'), ('σ', 'sigma'), ('φ', 'phi'), ('ω', 'omega'), ('Σ', 'sum'), ('∫', 'int'), ('∞', 'infty'), ('≤', 'leq'), ('≥', 'geq'), ('≠', 'neq'), ('→', 'rightarrow'), ('×', 'times')]
@@ -276,7 +277,7 @@ class EditorOptions:
     def table_dialog(self):
         if self.readonly or not self.project:
             return
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Créer un tableau')
         dialog.geometry('750x520')
         settings = tk.Frame(dialog)
@@ -328,7 +329,7 @@ class EditorOptions:
         raw = filedialog.askopenfilename(title='Insérer une image', filetypes=[('Images LaTeX', '*.png *.jpg *.jpeg *.pdf')])
         if not raw:
             return
-        options = tk.Toplevel(self)
+        options = SoftDialog(self)
         options.title('Image — taille et légende')
         options.transient(self)
         width = tk.IntVar(value=80)
@@ -376,7 +377,7 @@ class EditorOptions:
         if not self.project:
             return
         from project_store import sources
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Images et ressources')
         table = ttk.Treeview(dialog, show='tree', height=10)
         table.pack(fill='both', expand=True, padx=12, pady=12)
@@ -394,7 +395,7 @@ class EditorOptions:
         self.button(dialog, 'Insérer une nouvelle image', self.insert_image).pack(pady=12)
 
     def share_dialog(self):
-        dialog = tk.Toplevel(self)
+        dialog = SoftDialog(self)
         dialog.title('Share — partage local')
         dialog.configure(bg=PANEL)
         tk.Label(dialog, text='Partager votre document', bg=PANEL, fg=FG, font=('Segoe UI', 18, 'bold')).pack(padx=28, pady=(24, 12))
