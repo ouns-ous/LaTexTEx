@@ -21,7 +21,7 @@ Citation \cite{knuth}.
 \end{document}
 '''
     app.new_project()
-    dialog = next(w for w in app.winfo_children() if w.winfo_class() == 'Toplevel')
+    dialog = next(w for w in app.winfo_children() if w == app.inline_panel)
     entry = next(w for w in dialog.winfo_children() if w.winfo_class() == 'TEntry')
     entry.delete(0, 'end')
     entry.insert(0, 'Projet intégration')

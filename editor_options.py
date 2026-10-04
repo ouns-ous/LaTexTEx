@@ -240,8 +240,10 @@ class EditorOptions:
         dialog.title('Symboles mathématiques')
         dialog.configure(bg=PANEL)
         symbols = [('α', 'alpha'), ('β', 'beta'), ('γ', 'gamma'), ('δ', 'delta'), ('θ', 'theta'), ('λ', 'lambda'), ('μ', 'mu'), ('π', 'pi'), ('ρ', 'rho'), ('σ', 'sigma'), ('φ', 'phi'), ('ω', 'omega'), ('Σ', 'sum'), ('∫', 'int'), ('∞', 'infty'), ('≤', 'leq'), ('≥', 'geq'), ('≠', 'neq'), ('→', 'rightarrow'), ('×', 'times')]
+        grid = tk.Frame(dialog, bg=PANEL)
+        grid.pack(padx=18, pady=18)
         for index, (label, command) in enumerate(symbols):
-            self.button(dialog, label, lambda name=command: (self.insert_latex('\\ensuremath{\\' + name, '}'), dialog.destroy()), width=3).grid(row=index//5, column=index%5, padx=5, pady=5)
+            self.button(grid, label, lambda name=command: (self.insert_latex('\\ensuremath{\\' + name, '}'), dialog.destroy()), width=3).grid(row=index//5, column=index%5, padx=5, pady=5)
 
     def ensure_package(self, name):
         from project_store import inside
@@ -338,20 +340,23 @@ class EditorOptions:
         ttk.Spinbox(options, from_=10, to=100, textvariable=width, width=10).pack()
         ttk.Label(options, text='Légende (facultative)').pack(pady=(10, 5))
         ttk.Entry(options, textvariable=caption, width=45).pack(padx=20)
-        accepted = []
+        project_id = self.project['id']
         def accept():
             value = width.get()
             if not 10 <= value <= 100:
                 raise ValueError('La largeur doit être entre 10 et 100 %.')
-            accepted.append(value)
+            if not self.project or self.project['id'] != project_id:
+                return
             options.destroy()
+            self.insert_image_source(Path(raw).resolve(), value, caption.get())
         self.button(options, 'Insérer', accept, accent=True).pack(pady=15)
         options.grab_set()
-        self.wait_window(options)
-        if not accepted:
+        return
+
+    def insert_image_source(self, source, width, caption):
+        if self.readonly or not self.project:
             return
         import shutil
-        source = Path(raw).resolve()
         folder = Path(self.project['path']) / 'images'
         folder.mkdir(exist_ok=True)
         safe_stem = re.sub(r'[^A-Za-z0-9_-]+', '-', source.stem).strip('-') or 'image'
@@ -366,9 +371,9 @@ class EditorOptions:
         was_visual=self.prepare_source_edit()
         self.ensure_package('graphicx')
         relative = target.relative_to(Path(self.project['path'])).as_posix()
-        figure = '\\begin{figure}[ht]\n\\centering\n\\includegraphics[width=' + str(accepted[0] / 100) + '\\linewidth]{' + relative + '}\n'
-        if caption.get().strip():
-            figure += '\\caption{' + escape_text(caption.get()) + '}\n'
+        figure = '\\begin{figure}[ht]\n\\centering\n\\includegraphics[width=' + str(width / 100) + '\\linewidth]{' + relative + '}\n'
+        if caption.strip():
+            figure += '\\caption{' + escape_text(caption) + '}\n'
         self.insert_latex(figure + '\\end{figure}\n', '')
         self.refresh_files()
         if was_visual:self.return_to_visual()

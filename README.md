@@ -44,7 +44,7 @@ Les documents personnels, préférences locales et fichiers temporaires de compi
 
 ![Galerie de modèles](preview-gallery.png)
 
-Les fenêtres de création, recherche, préférences, historique et insertion s’ouvrent au centre de l’application avec une apparition progressive. Les cartes et boutons ont des angles arrondis, les champs des bordures discrètes et la création de projet affiche le modèle sélectionné avant validation. Échap ferme les fenêtres secondaires.
+La création, la recherche, les préférences, l’historique et les outils d’insertion s’ouvrent dans un panneau intégré à droite de l’application, sans fenêtre supplémentaire. « Agrandir » utilise tout l’espace de travail et « Réduire » revient à la taille initiale. « Fermer » ou Échap ferme le panneau ; la navigation reste disponible. Les cartes et boutons ont des angles arrondis et la création affiche le modèle sélectionné avant validation.
 
 Application locale Windows avec accueil des projets, éditeur multi-fichiers et aperçu PDF intégré, inspirée de la navigation d’Overleaf.
 

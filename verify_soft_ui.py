@@ -20,11 +20,17 @@ with tempfile.TemporaryDirectory(dir=ROOT) as directory:
     while time.monotonic() < deadline:
         app.update()
         time.sleep(0.01)
-    assert abs((dialog.winfo_rootx() + dialog.winfo_width()/2) - (app.winfo_rootx() + app.winfo_width()/2)) < 8
-    assert abs((dialog.winfo_rooty() + dialog.winfo_height()/2) - (app.winfo_rooty() + app.winfo_height()/2)) < 35
-    assert dialog.attributes('-alpha') == 1.0
+    assert dialog.winfo_toplevel() == app
+    assert not any(isinstance(w, tk.Toplevel) for w in app.winfo_children())
     assert dialog.winfo_viewable()
-    ImageGrab.grab(window=dialog.winfo_id()).save(ROOT / 'preview-dialog.png')
+    assert app.grab_current() is None
+    original_width = dialog.winfo_width()
+    dialog.toggle_maximize()
+    app.update()
+    assert dialog.winfo_width() > original_width
+    dialog.toggle_maximize()
+    app.update()
+    ImageGrab.grab(window=app.winfo_id()).save(ROOT / 'preview-dialog.png')
     dialog.event_generate('<Escape>')
     app.update()
     if dialog.winfo_exists():
@@ -35,4 +41,4 @@ with tempfile.TemporaryDirectory(dir=ROOT) as directory:
     app.update()
     assert not errors, errors
     app.destroy()
-print('Centered dialogs, selected template preview, smooth reveal and callback cleanup: OK')
+print('Embedded panels, maximize, non-modal navigation and callback cleanup: OK')

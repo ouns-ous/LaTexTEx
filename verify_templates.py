@@ -6,6 +6,7 @@ import tkinter as tk
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 from project_studio import App, TEMPLATES, ROOT, find_engine
+from soft_ui import SoftDialog
 from unittest.mock import patch
 from PIL import Image
 from template_catalog import table_source
@@ -34,12 +35,12 @@ with tempfile.TemporaryDirectory(dir=ROOT) as directory:
     app = App(data_dir=root / 'data', legacy=root / 'absent')
     app.autosave.set(False)
     app.new_project('العربية — Article')
-    dialog = next(w for w in app.winfo_children() if isinstance(w, tk.Toplevel))
+    dialog = next(w for w in app.winfo_children() if isinstance(w, SoftDialog))
     button = next(w for w in dialog.winfo_children() if hasattr(w, 'label') and w.label == 'Créer le projet')
     button.invoke()
     assert app.project['engine'] == 'xelatex'
     app.table_dialog()
-    dialog = next(w for w in app.winfo_children() if isinstance(w, tk.Toplevel))
+    dialog = next(w for w in app.winfo_children() if isinstance(w, SoftDialog))
     button = next(w for w in dialog.winfo_children() if hasattr(w, 'label') and w.label == 'Insérer le tableau')
     button.invoke()
     assert '\\begin{tabular}{|l|l|l|}' in app.active_doc().content()
@@ -48,17 +49,18 @@ with tempfile.TemporaryDirectory(dir=ROOT) as directory:
     def accept_image(dialog):
         button = next(w for w in dialog.winfo_children() if hasattr(w, 'label') and w.label == 'Insérer')
         button.invoke()
-    with patch('editor_options.filedialog.askopenfilename', return_value=str(image)), patch.object(app, 'wait_window', side_effect=accept_image):
+    with patch('editor_options.filedialog.askopenfilename', return_value=str(image)):
         app.insert_image()
+        accept_image(app.inline_panel)
     assert '\\includegraphics[width=0.8\\linewidth]{images/test-image.png}' in app.active_doc().content()
     assert (Path(app.project['path']) / 'images' / 'test-image.png').exists()
     app.save_all()
     app.history_dialog()
     app.update()
-    dialog = next(w for w in app.winfo_children() if isinstance(w, tk.Toplevel))
+    dialog = next(w for w in app.winfo_children() if isinstance(w, SoftDialog))
     table = next(w for w in dialog.winfo_children() if isinstance(w, __import__('tkinter').ttk.Treeview))
     table.selection_set(table.get_children()[0])
-    actions = next(w for w in dialog.winfo_children() if isinstance(w, tk.Frame))
+    actions = next(w for w in dialog.winfo_children() if isinstance(w, tk.Frame) and any(getattr(c, 'label', '') == 'Comparer avec maintenant' for c in w.winfo_children()))
     compare = next(w for w in actions.winfo_children() if hasattr(w, 'label') and w.label == 'Comparer avec maintenant')
     compare.invoke()
     preview = next(w for w in dialog.winfo_children() if isinstance(w, tk.Text))

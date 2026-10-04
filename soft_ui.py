@@ -1,4 +1,4 @@
-"""Shared centered dialogs and rounded surfaces for the desktop workspace."""
+"""Embedded workspace tools and rounded surfaces for the desktop app."""
 import tkinter as tk
 
 SURFACE = '#ffffff'
@@ -22,43 +22,114 @@ def center_window(window, owner=None):
     window.geometry(f'{width}x{height}+{x}+{y}')
 
 
-class SoftDialog(tk.Toplevel):
+class SoftDialog(tk.Frame):
+    """An embedded workspace panel, never an additional OS window."""
     def __init__(self, master, **kwargs):
-        super().__init__(master, **kwargs)
-        self.withdraw()
-        self.configure(bg=SURFACE)
         self.owner = master.winfo_toplevel()
-        self.transient(self.owner)
-        self.bind('<Escape>', lambda event: self.destroy())
-        self.pending = [self.after_idle(self.reveal)]
+        previous = getattr(self.owner, 'inline_panel', None)
+        if previous and previous.winfo_exists():
+            previous.destroy()
+        kwargs.update(bg=SURFACE, highlightthickness=1, highlightbackground='#dbe6ef')
+        super().__init__(self.owner, **kwargs)
+        self.owner.inline_panel = self
+        self.requested_size = None
+        self.maximized = False
+        self.pending = []
+        self.return_action = None
+        self.caption = tk.StringVar(value='Outils')
+        header = tk.Frame(self, bg='#f5f8fb', padx=12, pady=5)
+        header.pack(fill='x')
+        tk.Label(header, textvariable=self.caption, bg='#f5f8fb', fg='#203149', font=('Segoe UI', 12, 'bold'), anchor='w').pack(side='left', fill='x', expand=True)
+        self.owner.button(header, 'Fermer', self.destroy).pack(side='right', padx=(6, 0))
+        self.expand_button = self.owner.button(header, 'Agrandir', self.toggle_maximize)
+        self.expand_button.pack(side='right')
+        self.resize_binding = self.owner.bind('<Configure>', self.on_resize, add='+')
+        self.escape_binding = self.owner.bind('<Escape>', self.escape, add='+')
+        self.return_binding = self.owner.bind('<Return>', self.on_return, add='+')
+        super().bind('<Escape>', self.escape)
+        self.pending.append(self.after_idle(self.reveal))
+
+    def title(self, value=None):
+        if value is not None:
+            self.caption.set(value)
+        return self.caption.get()
+
+    def geometry(self, value):
+        dimensions = value.split('+')[0].split('x')
+        self.requested_size = tuple(map(int, dimensions))
+
+    def transient(self, *args):
+        pass
+
+    def resizable(self, *args):
+        pass
+
+    def grab_set(self):
+        # Background navigation remains usable; changing tools replaces the panel.
+        pass
+
+    def bind(self, sequence=None, func=None, add=None):
+        if sequence == '<Return>':
+            self.return_action = func
+            return None
+        return super().bind(sequence, func, add)
+
+    def contains(self, widget):
+        while widget:
+            if widget == self:
+                return True
+            widget = getattr(widget, 'master', None)
+        return False
+
+    def on_return(self, event):
+        if self.return_action and self.contains(event.widget) and not isinstance(event.widget, tk.Text):
+            self.return_action(event)
+            return 'break'
+
+    def escape(self, event=None):
+        self.destroy()
+        return 'break'
+
+    def toggle_maximize(self):
+        self.maximized = not self.maximized
+        self.expand_button.configure(text='Réduire' if self.maximized else 'Agrandir')
+        self.position()
+
+    def on_resize(self, event):
+        if event.widget == self.owner:
+            self.position()
+
+    def position(self):
+        if not self.winfo_exists():
+            return
+        editor = getattr(self.owner, 'editor_view', None)
+        editing = bool(editor and editor.winfo_ismapped())
+        top = 58 if editing else 18
+        navigation_width = 45 if editing else 228
+        available_width = max(300, self.owner.winfo_width() - navigation_width - 36)
+        available_height = max(200, self.owner.winfo_height() - top - 18)
+        if self.maximized:
+            width, height = available_width, available_height
+        else:
+            width, height = self.requested_size or (560, self.winfo_reqheight())
+            width = min(width, available_width)
+            height = min(max(240, height), available_height)
+        self.place(x=self.owner.winfo_width() - width - 18, y=top, width=width, height=height)
+        self.lift()
 
     def destroy(self):
         for timer in self.pending:
             self.after_cancel(timer)
         self.pending.clear()
+        for sequence, binding in [('<Configure>', self.resize_binding), ('<Escape>', self.escape_binding), ('<Return>', self.return_binding)]:
+            self.owner.unbind(sequence, binding)
+        if getattr(self.owner, 'inline_panel', None) == self:
+            self.owner.inline_panel = None
         super().destroy()
 
     def reveal(self):
-        if not self.winfo_exists():
-            return
-        center_window(self, self.owner)
-        try:
-            self.attributes('-alpha', 0.0)
-        except tk.TclError:
-            pass
-        self.deiconify()
-        self.lift()
-        # Keep the normal Windows frame, resizing and keyboard behavior.
-        try:
-            self.fade_in(0)
-        except tk.TclError:
-            pass
-
-    def fade_in(self, step):
         if self.winfo_exists():
-            self.attributes('-alpha', min(1.0, step / 6))
-            if step < 6:
-                self.pending.append(self.after(18, lambda: self.fade_in(step + 1)))
+            self.position()
 
 
 class SoftCard(tk.Frame):

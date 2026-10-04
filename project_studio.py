@@ -856,6 +856,8 @@ class App(EditorOptions, tk.Tk):
             menu.tk_popup(event.x_root, event.y_root)
 
     def open_project(self, project):
+        if getattr(self, 'inline_panel', None):
+            self.inline_panel.destroy()
         if self.busy:
             raise ValueError('Attendez la fin de compilation ou cliquez sur Arrêter avant de changer de projet.')
         if not self.save_all():
@@ -895,6 +897,8 @@ class App(EditorOptions, tk.Tk):
         self.status.set('Projet ouvert · ' + project['path'])
 
     def show_home(self):
+        if getattr(self, 'inline_panel', None):
+            self.inline_panel.destroy()
         if not self.save_all():
             return
         self.editor_view.pack_forget()
